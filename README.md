@@ -1,70 +1,90 @@
 README
 ================
 
-# its2es
+# its2es (Extended for Multiple Disruptions)
 
-This package implements interrupted time series analysis for both
+This package implements interrupted time series (ITS) analysis for both
 continuous and count outcomes, and quantifies the associated effect
-size, as described in Effect size quantification for interrupted time
-series analysis: Implementation in R and analysis for Covid-19 research.
+size, as described in *Effect size quantification for interrupted time
+series analysis: Implementation in R and analysis for Covid-19 research*. 
+
+**Version 0.2.0 Update:** The package has been substantially extended to support **multiple disruption events**, **zero-inflated count models**, **seasonal adjustments via Fourier terms**, and **mixed-effects architectures**. 
+
 The main functions fit an ITS regression model, and then use the fitted
 values and the model-based counterfactual values to quantify the effect
-size (Cohen’s d for continuous outcomes and relative risk for count
-outcomes). An example describing how to install and use this package is
+size. Effect sizes are reported as Cohen’s *d* (via parametric bootstrapping) for continuous outcomes and Relative Risk (RR) for count outcomes.
+
+An example describing how to install and use this package for a multi-disruption scenario is
 described below. A more detailed tutorial, including the data analysis
-described in the paper, is also available with this package (Rmd + pdf
+described in the original paper, is also available with this package (Rmd + pdf
 file).
 
 ## Installation
 
-You can install the package from its [GitHub
-repository](https://github.com/Yael-Travis-Lumer/its2es/). You first
-need to install the [devtools](https://github.com/r-lib/devtools)
-package.
+You can install the package from its [GitHub repository](https://github.com/GilaiBlum/mits2es). You first
+need to install the [devtools](https://github.com/r-lib/devtools) package.
 
 ``` r
-install.packages("devtools",repos = "http://cran.us.r-project.org")
+install.packages("devtools", repos = "[http://cran.us.r-project.org](http://cran.us.r-project.org)")
 ```
 
-Then install its2es using the `install_github` function in the
-[devtools](https://github.com/r-lib/devtools) package.
+Then install its2es using the install_github function in the devtools package.
 
-``` r
+```
 library(devtools)
-install_github("Yael-Travis-Lumer/its2es")
+install_github("GilaiBlum/mits2es")
 ```
 
-## Example
+## Example: Multiple Disruptions
 
-1.  Load library and Israel all-cause mortality data (discussed in
-    paper)
+This example demonstrates how to evaluate multiple disruptions (e.g., the onset of the COVID-19 pandemic and its subsequent cessation) using the multiple-interruption architecture.
 
-``` r
+1. Load the library and the Israel all-cause mortality data.
+
+```
 library(its2es)
 data <- Israel_mortality
 ```
 
-2.  Define formula and intervention start index for the Covid-19 period
+2. Define the formula and a vector of intervention start indices. In this example, we set two disruptions: the onset of COVID-19 (March 2020) and a subsequent shift (e.g., January 2021).
 
-``` r
+```
 form <- as.formula("percent ~ time")
-intervention_start_ind <- which(data$Year==2020 & data$Month==3)
+start_indices <- c(which(data$Year==2020 & data$Month==3), 
+                   which(data$Year==2021 & data$Month==1))
 ```
 
-3.  Fit a linear regression ITS model to the mortality percent
+3. Fit a linear regression ITS model to the mortality percent. We use multi_model_type = "multiple" to evaluate the distinct effect size of each disruption independently.
 
-``` r
-fit <- its_lm(data=data,form=form,time_name = "time",intervention_start_ind=intervention_start_ind, freq=12,seasonality= "full", impact_model = "full",counterfactual = TRUE, print_summary = FALSE)
+```
+fit <- its_lm(data = data, 
+              form = form, 
+              time_name = "time",
+              intervention_start_indices = start_indices, 
+              multi_model_type = "multiple",
+              freq = 12, 
+              seasonality = "full", 
+              impact_model = "full",
+              counterfactual = TRUE, 
+              print_summary = FALSE)
 ```
 
-    ## Cohen's d   2.5% CI  97.5% CI   P-value 
-    ##  1.038391  0.332192  1.715101  0.002500
+Console Output:
 
-4.  Plot predicted values and counterfactual values
+| Disruption   | Cohen's d | 2.5% CI  | 97.5% CI | P-value |
+|--------------|----------:|---------:|----------:|--------:|
+| Disruption_1 | 1.038391  | 0.332192 | 1.715101  | 0.0025  |
+| Disruption_2 | -0.421530 | -0.985100 | 0.152300 | 0.1250  |
 
-``` r
-p <- plot_its_lm(data=fit$data,intervention_start_ind=intervention_start_ind, y_lab="All-cause mortality percent", response="percent", date_name= "Date")
+4. Plot the predicted values and counterfactual values. The updated plotting function will automatically handle the multiple boundaries and draw the appropriate disconnected regression lines.
+
+```
+p <- plot_its_lm(data = fit$data, 
+                 intervention_start_indices = start_indices, 
+                 y_lab = "All-cause mortality percent", 
+                 response = "percent", 
+                 date_name = "Date")
 p
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
